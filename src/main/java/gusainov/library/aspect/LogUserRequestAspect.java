@@ -1,7 +1,9 @@
 package gusainov.library.aspect;
 
+import static gusainov.library.masking.MaskingUtils.maskByPattern;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import gusainov.library.annotation.LogUserRequest;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -35,19 +37,28 @@ public class LogUserRequestAspect {
   public Object logUserRequest(ProceedingJoinPoint serviceJoinPoint,
       LogUserRequest logUserRequest) throws Throwable{
 
+    String requestId = UUID.randomUUID().toString();
 
-    String method = logUserRequest.value();
+    String method = logUserRequest.method();
+
+    String[] maskPatterns = logUserRequest.maskPatterns();
+
+    String bodyRequest = maskByPattern(prettyJson(serviceJoinPoint.getArgs()), maskPatterns);
 
     log.info(
         """
         
         ==================== REQUEST ====================
         
+        requestId: {}
         Method: {}
         Body: {}
        
         =================================================
-        """, method, prettyJson(serviceJoinPoint.getArgs()));
+        """,
+        requestId,
+        method,
+        bodyRequest);
 
     Object response;
 
@@ -60,25 +71,36 @@ public class LogUserRequestAspect {
           
           ==================== ERROR ====================
           
+          requestId: {}
           Method: {}
           Message: {}
          
-          =================================================
-          """, method, e.getMessage(), e);
+          ===============================================
+          """,
+          requestId,
+          method,
+          e.getMessage(), e);
 
       throw e;
     }
+
+    String bodyResponse = maskByPattern(prettyJson(response), maskPatterns);
+
 
     log.info(
         """
         
         ==================== RESPONSE ===================
         
+        requestId: {}
         Method: {}
         Body: {}
         
         =================================================
-        """, method, prettyJson(response));
+        """,
+        requestId,
+        method,
+        bodyResponse);
 
     return response;
   }
